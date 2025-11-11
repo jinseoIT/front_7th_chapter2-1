@@ -1,10 +1,13 @@
-import Layout from "../components/Layout";
-import ProductList from "../components/ProductList";
+import Component from "@/core/Component";
+import Layout from "@/components/Layout";
+import ProductList from "@/components/ProductList";
 
-const Home = () => {
-  return `
-  ${Layout(ProductList)}
-  `;
-};
+class Home extends Component {
+  template() {
+    return `
+    ${Layout(ProductList)}
+    `;
+  }
+}
 
 export default Home;

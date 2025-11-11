@@ -1,14 +1,14 @@
-import Cart from "./pages/Cart";
-import Home from "./pages/Home";
-import NotFound from "./pages/NotFound";
-import Product from "./pages/Product";
+import Home from "@/pages/Home";
+import Cart from "@/pages/Cart";
+import Product from "@/pages/Product";
+import NotFound from "@/pages/NotFound";
 
 const root = document.querySelector("#root");
 
 const routes = [
-  { path: "/", page: Home },
-  { path: "/products", page: Product },
-  { path: "/cart", page: Cart },
+  { path: "/", component: Home },
+  { path: "/products", component: Product },
+  { path: "/cart", component: Cart },
 ];
 
 const getRoute = (path) => {
@@ -16,14 +16,9 @@ const getRoute = (path) => {
   return route;
 };
 
-const render = (path) => {
+const render = (path, param) => {
   const route = getRoute(path);
-  const page = route?.page || NotFound;
-
-  const view = page();
-
-  if (view instanceof Node) root.replaceChildren(view);
-  else root.innerHTML = view ?? "";
+  return route ? new route.component(root, param) : new NotFound(root);
 };
 
 export const navigate = (path, param) => {

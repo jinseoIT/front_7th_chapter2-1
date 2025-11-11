@@ -1,4 +1,5 @@
 import { defineConfig } from "vitest/config";
+import path from "path";
 
 export default defineConfig({
   base: "/front_7th_chapter2-1/",
@@ -11,6 +12,11 @@ export default defineConfig({
       threads: {
         singleThread: true,
       },
+    },
+  },
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "src"),
     },
   },
 });

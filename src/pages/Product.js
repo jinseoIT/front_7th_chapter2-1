@@ -1,9 +1,12 @@
-import Layout from "../components/Layout";
+import Component from "@/core/Component";
+import Layout from "@/components/Layout";
 
-const Product = () => {
-  return `
+class Product extends Component {
+  template() {
+    return `
   ${Layout()}
   `;
-};
+  }
+}
 
 export default Product;
