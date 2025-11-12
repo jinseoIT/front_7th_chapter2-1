@@ -4,6 +4,7 @@ import ProductCard from "./ProductCard";
 import { navigateTo } from "../router";
 import { getCategories, getProducts } from "../api/productApi";
 import { defaultProductState } from "../store/prodcutStore";
+import { HomeLoading } from "./loading/HomeLoading";
 
 class ProductList extends Component {
   getInitState() {
@@ -29,9 +30,14 @@ class ProductList extends Component {
   }
   template() {
     console.log("state ::", this.state);
+    console.log("stateIsLoding ::", this.state.isLoading);
     const { pagination } = this.state;
     return `
       <main class="max-w-md mx-auto px-4 py-4">
+      ${
+        this.state.isLoading
+          ? HomeLoading
+          : `
         <section class="search_filter"></section>
         <!-- 상품 목록 -->
         <div class="mb-6">
@@ -44,16 +50,30 @@ class ProductList extends Component {
             <div class="grid grid-cols-2 gap-4 mb-6" id="products-grid">
             </div>
             
-            <div class="text-center py-4 text-sm text-gray-500">
+            <!-- 무한 스크롤 감시 대상 -->
+            <div id="observer-target" class="h-10"></div>
+            
+            ${
+              !this.state.pagination.hasNext
+                ? `<div class="text-center py-4 text-sm text-gray-500" id="end-message" style="display: none;">
               모든 상품을 확인했습니다
             </div>
-          </div>
+          </div>`
+                : ""
+            }
         </div>
+        `
+      }
+        
       </main>
   `;
   }
+  didMount() {
+    this.state = { ...defaultProductState };
+  }
 
   setup() {
+    this.observer = null; // Intersection Observer 인스턴스
     this.asyncFetchData();
   }
 
@@ -70,18 +90,28 @@ class ProductList extends Component {
     const [productsRes, categories] = await Promise.all([getProducts(searchParams), getCategories()]);
 
     this.setState({
-      loading: false,
+      isLoading: false,
       pagination: productsRes.pagination,
       products: productsRes.products, // 새로운 검색 시 기존 상품 목록 교체
       categories,
       filters,
       searchParams,
     });
+
+    // 초기 데이터 로드 후 Observer 설정 및 종료 메시지 업데이트
+    this.setupObserver();
   }
 
   mountProductCards() {
     const $productList = this.$target.querySelector("#products-grid");
     if (!$productList) return;
+
+    // 기존 ProductCard 제거 (render()로 innerHTML이 교체되지만, 자식 컴포넌트는 수동으로 정리)
+    const existingCards = this.$childComponents.filter((component) => component instanceof ProductCard);
+    existingCards.forEach((card) => {
+      if (card.unmount) card.unmount();
+    });
+    this.$childComponents = this.$childComponents.filter((component) => !(component instanceof ProductCard));
 
     // 새로운 ProductCard 생성
     this.state?.products?.forEach((product) => {
@@ -102,6 +132,9 @@ class ProductList extends Component {
 
     // ProductCard 재마운트
     this.mountProductCards();
+
+    // Intersection Observer 재등록
+    this.setupObserver();
   }
 
   setEvent() {
@@ -163,19 +196,78 @@ class ProductList extends Component {
   }
 
   async handlesearch(params) {
-    this.getProducts(params);
+    // 새로운 검색/필터 시 페이지 리셋
+    const resetParams = { ...params, page: 1 };
+    this.getProducts(resetParams, true); // true = 교체 모드
   }
 
-  async getProducts(params) {
+  async getProducts(params, replace = false) {
     const searchParams = { ...this.state.searchParams, ...params };
 
     const response = await getProducts(searchParams);
+
+    // replace가 true면 교체, false면 추가 (무한 스크롤)
+    const products = replace ? response.products : [...(this.state.products || []), ...response.products];
+
     const newState = {
       ...response,
+      products,
       searchParams,
     };
     this.setState(newState);
     this.syncToURL();
+  }
+
+  // 다음 페이지 로드 (무한 스크롤)
+  async loadNextPage() {
+    // 이미 로딩 중이거나 더 이상 데이터가 없으면 중단
+    if (this.state.isLoadingMore || !this.state.pagination?.hasNext) {
+      return;
+    }
+
+    this.setState({ isLoadingMore: true });
+
+    const nextPage = (this.state.pagination?.page || 1) + 1;
+    await this.getProducts({ page: nextPage }, false); // false = 추가 모드
+
+    this.setState({ isLoadingMore: false });
+  }
+
+  // Intersection Observer 설정
+  setupObserver() {
+    // 기존 Observer 해제
+    if (this.observer) {
+      this.observer.disconnect();
+      this.observer = null;
+    }
+
+    // 더 이상 데이터가 없으면 Observer 등록하지 않음
+    if (!this.state.pagination?.hasNext) {
+      return;
+    }
+
+    const target = this.$target.querySelector("#observer-target");
+    if (!target) return;
+
+    // Intersection Observer 생성
+    this.observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            // 화면에 보이면 다음 페이지 로드
+            this.loadNextPage();
+          }
+        });
+      },
+      {
+        root: null, // 뷰포트 기준
+        rootMargin: "0px",
+        threshold: 0.3, // 30% 보이면 트리거
+      },
+    );
+
+    // 감시 시작
+    this.observer.observe(target);
   }
 
   syncToURL() {
@@ -194,6 +286,16 @@ class ProductList extends Component {
 
   goProductPage(id) {
     navigateTo(`/products/${id}`, { productId: id });
+  }
+
+  unmount() {
+    // Intersection Observer 정리
+    if (this.observer) {
+      this.observer.disconnect();
+      this.observer = null;
+    }
+    // 부모의 unmount 호출
+    super.unmount();
   }
 }
 
