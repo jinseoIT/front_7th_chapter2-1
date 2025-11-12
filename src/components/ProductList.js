@@ -2,23 +2,30 @@ import Component from "@/core/Component";
 import SearchFilter from "./SearchFilter";
 import ProductCard from "./ProductCard";
 import { navigateTo } from "../router";
-import { getProducts } from "../api/productApi";
+import { getCategories, getProducts } from "../api/productApi";
 import { defaultProductState } from "../store/prodcutStore";
 
 class ProductList extends Component {
-  initState() {
-    return this.getInitState();
-  }
   getInitState() {
     const initState = { ...defaultProductState };
     const urlParams = new URLSearchParams(window.location.search);
+
     const search = urlParams.get("search") || "";
     const category1 = urlParams.get("category1") || "";
     const category2 = urlParams.get("category2") || "";
     const sort = urlParams.get("sort") || "price_asc";
-    const page = urlParams.get("search ") || 1;
     const limit = urlParams.get("limit") || 20;
-    return { ...initState, page, limit, search, category1, category2, sort };
+    const page = urlParams.get("search ") || 1;
+
+    const filters = {
+      search,
+      category1,
+      category2,
+      sort,
+    };
+    initState.pagination.limit = limit;
+    initState.pagination.page = page;
+    return { ...initState, filters };
   }
   template() {
     console.log("state ::", this.state);
@@ -47,15 +54,34 @@ class ProductList extends Component {
   }
 
   setup() {
-    this.getProducts();
+    this.asyncFetchData();
+  }
+
+  async asyncFetchData() {
+    const { pagination, filters } = this.getInitState();
+    const searchParams = {
+      page: pagination.page, // 새로운 검색 시 첫 페이지부터
+      limit: pagination.limit,
+      search: filters.search,
+      category1: filters.category1,
+      category2: filters.category2,
+      sort: filters.sort,
+    };
+    const [productsRes, categories] = await Promise.all([getProducts(searchParams), getCategories()]);
+
+    this.setState({
+      loading: false,
+      pagination: productsRes.pagination,
+      products: productsRes.products, // 새로운 검색 시 기존 상품 목록 교체
+      categories,
+      filters,
+      searchParams,
+    });
   }
 
   mountProductCards() {
     const $productList = this.$target.querySelector("#products-grid");
     if (!$productList) return;
-
-    // // 기존 ProductCard 제거
-    // $productList.innerHTML = "";
 
     // 새로운 ProductCard 생성
     this.state?.products?.forEach((product) => {
@@ -70,7 +96,7 @@ class ProductList extends Component {
     // render 후 자식 컴포넌트 재마운트
     const $searchFilter = this.$target.querySelector(".search_filter");
     if ($searchFilter && !$searchFilter.hasChildNodes()) {
-      const searchFilterComponent = new SearchFilter($searchFilter);
+      const searchFilterComponent = new SearchFilter($searchFilter, this.state);
       this.addChildComponent(searchFilterComponent);
     }
 
@@ -86,11 +112,84 @@ class ProductList extends Component {
       const productId = el.dataset.productId;
       this.goProductPage(productId);
     });
+
+    this.addEvent("click", "#filter_category1", (e) => {
+      const el = e.target.closest("[data-category1]");
+      if (!el) return;
+
+      const category1 = el.dataset.category1;
+      this.handlesearch({ category1 });
+    });
+
+    this.addEvent("click", "#filter_category2", (e) => {
+      const el = e.target.closest("[data-category2]");
+      if (!el) return;
+
+      const category2 = el.dataset.category2;
+      this.handlesearch({ category2 });
+    });
+
+    this.addEvent("click", "#category_container", (e) => {
+      const el = e.target.closest("[data-breadcrumb]");
+      if (!el) return;
+
+      const category = el.dataset.breadcrumb;
+      if (category === "reset") {
+        this.handlesearch({ category1: "", category2: "" });
+        return;
+      }
+      this.handlesearch({ category1: category, category2: "" });
+    });
+
+    this.addEvent("change", "#limit-select", (e) => {
+      const el = e.target.closest("#limit-select") || e.target;
+      if (!el || el.id !== "limit-select") return;
+      this.handlesearch({ limit: Number(el.value) });
+    });
+
+    this.addEvent("change", "#sort-select", (e) => {
+      const el = e.target.closest("#sort-select") || e.target;
+      if (!el) return;
+      this.handlesearch({ sort: el.value });
+    });
+
+    this.addEvent("keydown", "#search-input", (e) => {
+      if (e.key !== "Enter") return;
+      const el = e.target.closest("#search-input") || e.target;
+      if (!el) return;
+      const q = el.value;
+      this.handlesearch({ search: q });
+    });
   }
 
-  async getProducts() {
-    const products = await getProducts();
-    this.setState(products);
+  async handlesearch(params) {
+    this.getProducts(params);
+  }
+
+  async getProducts(params) {
+    const searchParams = { ...this.state.searchParams, ...params };
+
+    const response = await getProducts(searchParams);
+    const newState = {
+      ...response,
+      searchParams,
+    };
+    this.setState(newState);
+    this.syncToURL();
+  }
+
+  syncToURL() {
+    const params = new URLSearchParams();
+    const { filters, pagination } = this.state;
+    if (filters.search) params.set("search", filters.search);
+    if (filters.category1) params.set("category1", filters.category1);
+    if (filters.category2) params.set("category2", filters.category2);
+    if (filters.sort !== "price_asc") params.set("sort", filters.sort);
+    if (pagination.page !== 1) params.set("page", pagination.page.toString());
+    if (pagination.limit !== 20) params.set("limit", pagination.limit.toString());
+
+    const newURL = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ""}`;
+    window.history.pushState({}, "", newURL);
   }
 
   goProductPage(id) {

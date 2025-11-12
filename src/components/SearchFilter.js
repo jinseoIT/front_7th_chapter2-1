@@ -2,13 +2,22 @@ import Component from "@/core/Component";
 
 class SearchFilter extends Component {
   template() {
-    return `
+    const { categories, filters, pagination, searchParams } = this.$props;
+    const { category1, category2 } = filters;
+    const { limit } = pagination;
+
+    const [top, children] = [
+      Object.keys(categories),
+      Object.fromEntries(Object.entries(categories).map(([k, v]) => [k, Object.keys(v)])),
+    ];
+
+    return /*html*/ `
     <!-- 검색 및 필터 -->
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4">
           <!-- 검색창 -->
           <div class="mb-4">
             <div class="relative">
-              <input type="text" id="search-input" placeholder="상품명을 검색해보세요..." value="" class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg
+              <input type="text" id="search-input" placeholder="상품명을 검색해보세요..." value="${searchParams.search}" class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg
                           focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
               <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -22,22 +31,48 @@ class SearchFilter extends Component {
           <div class="space-y-3">
             <!-- 카테고리 필터 -->
             <div class="space-y-2">
-              <div class="flex items-center gap-2">
+              <div class="flex items-center gap-2" id="category_container">
                 <label class="text-sm text-gray-600">카테고리:</label>
                 <button data-breadcrumb="reset" class="text-xs hover:text-blue-800 hover:underline">전체</button>
+                ${category1 && `<span class="text-xs text-gray-500">&gt;</span><button data-breadcrumb=${category1} data-category1=${category1} class="text-xs hover:text-blue-800 hover:underline">${category1}</button>`}
+                ${category2 && `<span class="text-xs text-gray-500">&gt;</span><span class="text-xs text-gray-600 cursor-default">${category2}</span>`}
               </div>
+            <div>
               <!-- 1depth 카테고리 -->
-              <div class="flex flex-wrap gap-2">
-                <button data-category1="생활/건강" class="category1-filter-btn text-left px-3 py-2 text-sm rounded-md border transition-colors
-                   bg-white border-gray-300 text-gray-700 hover:bg-gray-50">
-                  생활/건강
-                </button>
-                <button data-category1="디지털/가전" class="category1-filter-btn text-left px-3 py-2 text-sm rounded-md border transition-colors
-                   bg-white border-gray-300 text-gray-700 hover:bg-gray-50">
-                  디지털/가전
-                </button>
+              <div class="flex flex-wrap gap-2" id="filter_category1">
+                ${
+                  !category1
+                    ? top
+                        .map(
+                          (category) =>
+                            `<button data-category1=${category} class="category1-filter-btn text-left px-3 py-2 text-sm rounded-md border transition-colors
+                    bg-white border-gray-300 text-gray-700 hover:bg-gray-50">
+                    ${category}
+                  </button>`,
+                        )
+                        .join("")
+                    : ""
+                }
               </div>
               <!-- 2depth 카테고리 -->
+                <div class="flex flex-wrap gap-2" id="filter_category2">
+                  ${
+                    children[category1]
+                      ? children[category1]
+                          .map(
+                            (category) =>
+                              `<button
+                            data-category1="생활/건강"
+                            data-category2=${category}
+                            class="category2-filter-btn text-left px-3 py-2 text-sm rounded-md border transition-colors ${category === category2 ? "bg-blue-100 border-blue-300 text-blue-800" : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"}"
+                          >
+                            ${category}
+                          </button>`,
+                          )
+                          .join("")
+                      : ""
+                  }
+                </div>
             </div>
             <!-- 기존 필터들 -->
             <div class="flex gap-2 items-center justify-between">
@@ -45,17 +80,17 @@ class SearchFilter extends Component {
               <div class="flex items-center gap-2">
                 <label class="text-sm text-gray-600">개수:</label>
                 <select id="limit-select"
-                        class="text-sm border border-gray-300 rounded px-2 py-1 focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
-                  <option value="10">
+                    class="text-sm border border-gray-300 rounded px-2 py-1 focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                  <option value="10" ${limit === 10 ? "selected" : ""}>
                     10개
                   </option>
-                  <option value="20" selected="">
+                  <option value="20" ${limit === 20 ? "selected" : ""}>
                     20개
                   </option>
-                  <option value="50">
+                  <option value="50" ${limit === 50 ? "selected" : ""}>
                     50개
                   </option>
-                  <option value="100">
+                  <option value="100" ${limit === 100 ? "selected" : ""}>
                     100개
                   </option>
                 </select>

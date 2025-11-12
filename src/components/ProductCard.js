@@ -21,7 +21,7 @@ class ProductCard extends Component {
             </h3>
             <p class="text-xs text-gray-500 mb-2"></p>
             <p class="text-lg font-bold text-gray-900">
-              ${product.lprice.toLocaleString()}원
+              ${Number(product.lprice).toLocaleString()}원
             </p>
           </div>
           <!-- 장바구니 버튼 -->
