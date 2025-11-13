@@ -184,6 +184,14 @@ class Cart extends Component {
       cartStore.closeCart();
     });
 
+    // ESC 키로 모달 닫기
+    this.handleEscKey = (e) => {
+      if (e.key === "Escape" && this.state.isOpen) {
+        cartStore.closeCart();
+      }
+    };
+    document.addEventListener("keydown", this.handleEscKey);
+
     // 수량 감소
     this.addEvent("click", ".quantity-decrease-btn", (e) => {
       const productId = e.target.closest("[data-product-id]")?.dataset.productId;
@@ -280,6 +288,10 @@ class Cart extends Component {
   }
 
   unmount() {
+    // ESC 키 이벤트 리스너 해제
+    if (this.handleEscKey) {
+      document.removeEventListener("keydown", this.handleEscKey);
+    }
     // cartStore 구독 해제
     if (this.unsubscribe) {
       this.unsubscribe();
