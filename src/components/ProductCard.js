@@ -47,6 +47,12 @@ class ProductCard extends Component {
       if (product && product.productId === productId) {
         // cartStore에 상품 추가
         cartStore.addItem(product, 1);
+
+        // 커스텀 이벤트 발생 (HomePage에서 Toast 표시를 위해)
+        const cartEvent = new CustomEvent("cart:item-added", {
+          detail: { product },
+        });
+        document.dispatchEvent(cartEvent);
       }
     });
   }

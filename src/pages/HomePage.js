@@ -22,6 +22,28 @@ class HomePage extends Component {
     this.unsubscribe = cartStore.subscribe((newState) => {
       this.updateCartModal(newState.isOpen);
     });
+
+    // 장바구니 버튼 클릭 이벤트 관찰 (observe 패턴)
+    this.observeCartButtonClick();
+  }
+
+  /**
+   * 장바구니 버튼 클릭 이벤트 관찰 (observe 패턴)
+   */
+  observeCartButtonClick() {
+    // 장바구니 추가 이벤트 리스너
+    this.cartButtonClickHandler = () => {
+      this.showToast("success", "장바구니에 추가되었습니다");
+    };
+
+    // 장바구니 삭제 이벤트 리스너
+    this.cartItemRemovedHandler = () => {
+      this.showToast("info", "선택된 상품들이 삭제되었습니다");
+    };
+
+    // 전역 이벤트 리스너로 등록
+    document.addEventListener("cart:item-added", this.cartButtonClickHandler);
+    document.addEventListener("cart:item-removed", this.cartItemRemovedHandler);
   }
 
   mounted() {
@@ -48,8 +70,12 @@ class HomePage extends Component {
     }
 
     if ($toast) {
-      const toastComponent = new Toast($toast);
+      const toastComponent = new Toast($toast, {
+        status: null,
+        text: "",
+      });
       this.addChildComponent(toastComponent);
+      this.toastComponent = toastComponent;
     }
   }
 
@@ -63,10 +89,59 @@ class HomePage extends Component {
     }
   }
 
+  /**
+   * Toast 메시지 표시
+   * @param {string} status - 'success', 'info', 'error'
+   * @param {string} text - 표시할 메시지
+   */
+  showToast(status, text) {
+    if (this.toastComponent) {
+      this.toastComponent.$props = {
+        status,
+        text,
+      };
+      this.toastComponent.render();
+
+      // Toast 표시
+      const $toast = this.toastComponent.$target.querySelector(".toast-message");
+      if ($toast) {
+        $toast.style.display = "block";
+      }
+
+      // 3초 후 자동으로 숨기기
+      if (this.toastTimer) {
+        clearTimeout(this.toastTimer);
+      }
+      this.toastTimer = setTimeout(() => {
+        this.hideToast();
+      }, 3000);
+    }
+  }
+
+  /**
+   * Toast 메시지 숨기기
+   */
+  hideToast() {
+    if (this.toastComponent && this.toastComponent.hide) {
+      this.toastComponent.hide();
+    }
+  }
+
   unmount() {
+    // Toast 타이머 정리
+    if (this.toastTimer) {
+      clearTimeout(this.toastTimer);
+    }
     // cartStore 구독 해제
     if (this.unsubscribe) {
       this.unsubscribe();
+    }
+    // 장바구니 버튼 클릭 이벤트 리스너 해제
+    if (this.cartButtonClickHandler) {
+      document.removeEventListener("cart:item-added", this.cartButtonClickHandler);
+    }
+    if (this.cartItemRemovedHandler) {
+      document.removeEventListener("cart:item-removed", this.cartItemRemovedHandler);
     }
     // 부모의 unmount 호출
     super.unmount();

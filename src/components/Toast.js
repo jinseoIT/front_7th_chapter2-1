@@ -28,7 +28,7 @@ class Toast extends Component {
     }
 
     return `
-      <div class="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 toast-message">
+      <div class="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 toast-message">
         <div class="${config.bgColor} text-white px-4 py-3 rounded-lg shadow-lg flex items-center space-x-2 max-w-sm animate-slide-down">
           <div class="flex-shrink-0">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

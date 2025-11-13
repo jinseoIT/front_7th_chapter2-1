@@ -9,23 +9,38 @@ class Cart extends Component {
       items: cartStore.getState().items || [],
       totalCount: cartStore.getState().totalCount || 0,
       totalPrice: cartStore.getState().totalPrice || 0,
+      selectedItems: new Set(), // 선택된 상품 ID들
     };
   }
   // cartStore 구독하여 상태 동기화
   setup() {
+    // selectedItems가 없으면 초기화
+    if (!this.state.selectedItems) {
+      this.state.selectedItems = new Set();
+    }
+
     this.unsubscribe = cartStore.subscribe((newState) => {
+      // 삭제된 아이템을 selectedItems에서 제거
+      const currentItemIds = new Set((newState.items || []).map((item) => item.productId));
+      const newSelectedItems = new Set(
+        Array.from(this.state.selectedItems || []).filter((id) => currentItemIds.has(id)),
+      );
+
       this.setState({
         isOpen: newState.isOpen,
         items: newState.items,
         totalCount: newState.totalCount,
         totalPrice: newState.totalPrice,
+        selectedItems: newSelectedItems,
       });
     });
   }
 
   template() {
-    const { isOpen, items, totalPrice } = this.state;
+    const { isOpen, items, totalPrice, totalCount, selectedItems = new Set() } = this.state;
     const hasItems = items && items.length > 0;
+    const selectedCount = selectedItems.size || 0;
+    const isAllSelected = hasItems && selectedCount === items.length;
 
     return /*html*/ `
     <div class="fixed inset-0 z-50 overflow-y-auto cart-modal" style="display: ${isOpen ? "block" : "none"}">
@@ -55,6 +70,13 @@ class Cart extends Component {
             ${
               hasItems
                 ? `
+              <!-- 전체 선택 섹션 -->
+              <div class="p-4 border-b border-gray-200 bg-gray-50">
+              <label class="flex items-center text-sm text-gray-700">
+                <input type="checkbox" id="cart-modal-select-all-checkbox" class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mr-2" ${isAllSelected ? "checked" : ""}>
+                전체선택 (${totalCount}개)
+              </label>
+          </div>
             <!-- 장바구니 아이템 목록 -->
             <div class="flex-1 overflow-y-auto p-4">
               <div class="space-y-4">
@@ -62,6 +84,11 @@ class Cart extends Component {
                   .map(
                     (item) => `
                 <div class="flex items-center py-3 border-b border-gray-100 cart-item" data-product-id="${item.productId}">
+                 <!-- 선택 체크박스 -->
+                  <label class="flex items-center mr-3">
+                    <input type="checkbox" class="cart-item-checkbox w-4 h-4 text-blue-600 border-gray-300 rounded 
+                  focus:ring-blue-500" data-product-id="${item.productId}" ${selectedItems.has(item.productId) ? "checked" : ""}>
+                  </label>
                   <!-- 상품 이미지 -->
                   <div class="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden mr-3 flex-shrink-0">
                     <img src="${item.image}" alt="${item.title}" class="w-full h-full object-cover">
@@ -103,12 +130,24 @@ class Cart extends Component {
                 <span class="text-xl font-bold text-blue-600">${Number(totalPrice).toLocaleString()}원</span>
               </div>
               <div class="space-y-2">
-                <button id="cart-modal-clear-cart-btn" class="w-full bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-700 transition-colors text-sm">
-                  전체 비우기
+                ${
+                  selectedCount > 0
+                    ? `
+                <button id="cart-modal-remove-selected-btn" class="w-full bg-red-600 text-white py-2 px-4 rounded-md 
+                       hover:bg-red-700 transition-colors text-sm">
+                  선택한 상품 삭제 (${selectedCount}개)
                 </button>
-                <button id="cart-modal-checkout-btn" class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors text-sm">
-                  구매하기
-                </button>
+                `
+                    : ""
+                }
+                <div class="flex gap-2">
+                  <button id="cart-modal-clear-cart-btn" class="flex-1 bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-700 transition-colors text-sm">
+                    전체 비우기
+                  </button>
+                  <button id="cart-modal-checkout-btn" class="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors text-sm">
+                    구매하기
+                  </button>
+                </div>
               </div>
             </div>
             `
@@ -179,14 +218,64 @@ class Cart extends Component {
       const productId = e.target.dataset.productId;
       if (productId) {
         cartStore.removeItem(productId);
+        // 커스텀 이벤트 발생 (HomePage에서 Toast 표시를 위해)
+        const cartEvent = new CustomEvent("cart:item-removed", {
+          detail: { productId },
+        });
+        document.dispatchEvent(cartEvent);
+      }
+    });
+
+    // 전체 선택 체크박스
+    this.addEvent("change", "#cart-modal-select-all-checkbox", (e) => {
+      const isChecked = e.target.checked;
+      const newSelectedItems = new Set();
+      if (isChecked) {
+        this.state.items.forEach((item) => {
+          newSelectedItems.add(item.productId);
+        });
+      }
+      this.setState({ selectedItems: newSelectedItems });
+    });
+
+    // 개별 아이템 체크박스
+    this.addEvent("change", ".cart-item-checkbox", (e) => {
+      const productId = e.target.dataset.productId;
+      const isChecked = e.target.checked;
+      const newSelectedItems = new Set(this.state.selectedItems);
+      if (isChecked) {
+        newSelectedItems.add(productId);
+      } else {
+        newSelectedItems.delete(productId);
+      }
+      this.setState({ selectedItems: newSelectedItems });
+    });
+
+    // 선택한 상품 삭제
+    this.addEvent("click", "#cart-modal-remove-selected-btn", () => {
+      const selectedProductIds = Array.from(this.state.selectedItems);
+      if (selectedProductIds.length > 0) {
+        cartStore.removeSelected(selectedProductIds);
+        // 선택 상태 초기화
+        this.setState({ selectedItems: new Set() });
+        // 커스텀 이벤트 발생 (HomePage에서 Toast 표시를 위해)
+        const cartEvent = new CustomEvent("cart:item-removed", {
+          detail: { productIds: selectedProductIds },
+        });
+        document.dispatchEvent(cartEvent);
       }
     });
 
     // 전체 비우기
     this.addEvent("click", "#cart-modal-clear-cart-btn", () => {
-      if (confirm("장바구니를 모두 비우시겠습니까?")) {
-        cartStore.clearCart();
-      }
+      cartStore.clearCart();
+      // 선택 상태 초기화
+      this.setState({ selectedItems: new Set() });
+      // 커스텀 이벤트 발생 (HomePage에서 Toast 표시를 위해)
+      const cartEvent = new CustomEvent("cart:item-removed", {
+        detail: { cleared: true },
+      });
+      document.dispatchEvent(cartEvent);
     });
   }
 

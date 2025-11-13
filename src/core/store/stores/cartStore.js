@@ -52,7 +52,7 @@ class CartStore extends Store {
    */
   calculateTotals() {
     const items = this.state.items || [];
-    const totalCount = items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+    const totalCount = items.length;
     const totalPrice = items.reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 0), 0);
 
     this.setState({ totalCount, totalPrice });
