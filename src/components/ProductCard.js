@@ -47,8 +47,6 @@ class ProductCard extends Component {
       if (product && product.productId === productId) {
         // cartStore에 상품 추가
         cartStore.addItem(product, 1);
-        // 장바구니 모달 열기 (선택적)
-        cartStore.openCart();
       }
     });
   }

@@ -1,9 +1,10 @@
 import Component from "@/core/Component";
 import ProductList from "@/components/ProductList";
 import Footer from "@/components/Footer";
-import Header from "../components/Header";
-import Cart from "../components/Cart";
+import Header from "@/components/Header";
+import CartModal from "@/components/CartModal";
 import { cartStore } from "@/core/store";
+import Toast from "../components/Toast";
 
 class HomePage extends Component {
   template() {
@@ -11,6 +12,7 @@ class HomePage extends Component {
     <header class="header-container"></header>
     <section class="product_list"></section>
     <section class="cart-container"></section>
+    <section class="toast-container"></section>
     ${Footer()}
     `;
   }
@@ -26,6 +28,7 @@ class HomePage extends Component {
     const $header = this.$target.querySelector(".header-container");
     const $productList = this.$target.querySelector(".product_list");
     const $cart = this.$target.querySelector(".cart-container");
+    const $toast = this.$target.querySelector(".toast-container");
 
     if ($header) {
       const headerComponent = new Header($header);
@@ -38,10 +41,15 @@ class HomePage extends Component {
     }
 
     if ($cart) {
-      const cartComponent = new Cart($cart);
+      const cartComponent = new CartModal($cart);
       this.addChildComponent(cartComponent);
       // 초기 모달 상태 설정
       this.updateCartModal(cartStore.getState().isOpen);
+    }
+
+    if ($toast) {
+      const toastComponent = new Toast($toast);
+      this.addChildComponent(toastComponent);
     }
   }
 

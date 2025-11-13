@@ -29,11 +29,9 @@ class ProductList extends Component {
     return { ...initState, filters };
   }
   template() {
-    console.log("state ::", this.state);
-    console.log("stateIsLoding ::", this.state.isLoading);
     const { pagination } = this.state;
     return `
-      <main class="max-w-md mx-auto px-4 py-4">
+      <main class="max-w-md mx-auto px-4 py-4 pt-[88px]">
       ${
         this.state.isLoading
           ? HomeLoading
