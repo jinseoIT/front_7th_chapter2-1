@@ -2,8 +2,8 @@ import Component from "@/core/Component";
 
 class SearchFilter extends Component {
   template() {
-    const { categories, filters, pagination, searchParams } = this.$props;
-    const { category1, category2 } = filters;
+    const { categories, filters, pagination } = this.$props;
+    const { category1, category2, search } = filters;
     const { limit } = pagination;
 
     const [top, children] = [
@@ -17,7 +17,7 @@ class SearchFilter extends Component {
           <!-- 검색창 -->
           <div class="mb-4">
             <div class="relative">
-              <input type="text" id="search-input" placeholder="상품명을 검색해보세요..." value="${searchParams.search}" class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg
+              <input type="text" id="search-input" placeholder="상품명을 검색해보세요..." value="${search || ""}" class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg
                           focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
               <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -100,10 +100,10 @@ class SearchFilter extends Component {
                 <label class="text-sm text-gray-600">정렬:</label>
                 <select id="sort-select" class="text-sm border border-gray-300 rounded px-2 py-1
                              focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
-                  <option value="price_asc" selected="">가격 낮은순</option>
-                  <option value="price_desc">가격 높은순</option>
-                  <option value="name_asc">이름순</option>
-                  <option value="name_desc">이름 역순</option>
+                  <option value="price_asc" ${filters.sort === "price_asc" ? "selected" : ""}>가격 낮은순</option>
+                  <option value="price_desc" ${filters.sort === "price_desc" ? "selected" : ""}>가격 높은순</option>
+                  <option value="name_asc" ${filters.sort === "name_asc" ? "selected" : ""}>이름순</option>
+                  <option value="name_desc" ${filters.sort === "name_desc" ? "selected" : ""}>이름 역순</option>
                 </select>
               </div>
             </div>

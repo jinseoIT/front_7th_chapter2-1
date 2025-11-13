@@ -7,16 +7,35 @@ let currentPageComponent = null; // 현재 페이지 컴포넌트 추적
 
 const routes = [
   { path: "/", component: HomePage },
-  { path: "/products/:id", component: ProductPage },
+  { path: "/product/:id", component: ProductPage },
 ];
 
 const pathToRegex = (path) => new RegExp(`^${path.replace(/\//g, "\\/").replace(/:\w+/g, "(.+)")}$`);
 
+// 경로에서 파라미터 이름 추출
+const extractParamNames = (routePath) => (routePath.match(/:\w+/g) || []).map((param) => param.slice(1));
+
+// 매칭 결과에서 파라미터 객체 생성
+const buildParams = (paramNames, matchResult) =>
+  paramNames.reduce((params, paramName, index) => {
+    params[paramName] = matchResult[index + 1];
+    return params;
+  }, {});
+
+// 경로 매칭 및 파라미터 추출
+const matchRoute = (route, path) => {
+  const regex = pathToRegex(route.path);
+  const match = path.match(regex);
+  if (!match) return null;
+
+  const paramNames = extractParamNames(route.path);
+  const params = buildParams(paramNames, match);
+  return { route, isMatch: match, params };
+};
+
 export const getMatch = (path) => {
-  const matchedRoutes = routes.map((route) => {
-    return { route, isMatch: path.match(pathToRegex(route.path)) };
-  });
-  return matchedRoutes.find((matchedRoute) => matchedRoute.isMatch !== null);
+  const matchedRoute = routes.map((route) => matchRoute(route, path)).find((result) => result !== null);
+  return matchedRoute || null;
 };
 
 export const render = (path, param) => {
@@ -26,7 +45,9 @@ export const render = (path, param) => {
   }
 
   const match = getMatch(path);
-  const newComponent = match ? new match.route.component(root, param) : new NotFound(root);
+  // param이 있으면 우선 사용, 없으면 매칭된 params 사용
+  const finalParam = param || match?.params || {};
+  const newComponent = match ? new match.route.component(root, finalParam) : new NotFound(root);
 
   // 새로운 페이지 컴포넌트 저장
   currentPageComponent = newComponent;

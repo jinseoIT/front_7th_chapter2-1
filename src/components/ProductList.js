@@ -15,8 +15,8 @@ class ProductList extends Component {
     const category1 = urlParams.get("category1") || "";
     const category2 = urlParams.get("category2") || "";
     const sort = urlParams.get("sort") || "price_asc";
-    const limit = urlParams.get("limit") || 20;
-    const page = urlParams.get("search ") || 1;
+    const limit = Number(urlParams.get("limit")) || 20;
+    const page = Number(urlParams.get("page")) || 1;
 
     const filters = {
       search,
@@ -164,6 +164,7 @@ class ProductList extends Component {
       if (!el) return;
 
       const category1 = el.dataset.category1;
+      this.updateURL({ category1, category2: "", page: 1 });
       this.handlesearch({ category1 });
     });
 
@@ -172,6 +173,7 @@ class ProductList extends Component {
       if (!el) return;
 
       const category2 = el.dataset.category2;
+      this.updateURL({ category2, page: 1 });
       this.handlesearch({ category2 });
     });
 
@@ -181,22 +183,28 @@ class ProductList extends Component {
 
       const category = el.dataset.breadcrumb;
       if (category === "reset") {
+        this.updateURL({ category1: "", category2: "", page: 1 });
         this.handlesearch({ category1: "", category2: "" });
         return;
       }
+      this.updateURL({ category1: category, category2: "", page: 1 });
       this.handlesearch({ category1: category, category2: "" });
     });
 
     this.addEvent("change", "#limit-select", (e) => {
       const el = e.target.closest("#limit-select") || e.target;
       if (!el || el.id !== "limit-select") return;
-      this.handlesearch({ limit: Number(el.value) });
+      const limit = Number(el.value);
+      this.updateURL({ limit, page: 1 });
+      this.handlesearch({ limit });
     });
 
     this.addEvent("change", "#sort-select", (e) => {
       const el = e.target.closest("#sort-select") || e.target;
       if (!el) return;
-      this.handlesearch({ sort: el.value });
+      const sort = el.value;
+      this.updateURL({ sort, page: 1 });
+      this.handlesearch({ sort });
     });
 
     this.addEvent("keydown", "#search-input", (e) => {
@@ -204,6 +212,7 @@ class ProductList extends Component {
       const el = e.target.closest("#search-input") || e.target;
       if (!el) return;
       const q = el.value;
+      this.updateURL({ search: q, page: 1 });
       this.handlesearch({ search: q });
     });
   }
@@ -228,7 +237,7 @@ class ProductList extends Component {
       searchParams,
     };
     this.setState(newState);
-    this.syncToURL();
+    // URL 업데이트는 이벤트 핸들러에서 이미 처리됨
   }
 
   // 다음 페이지 로드 (무한 스크롤)
@@ -241,6 +250,7 @@ class ProductList extends Component {
     this.setState({ isLoadingMore: true });
 
     const nextPage = (this.state.pagination?.page || 1) + 1;
+    this.updateURL({ page: nextPage });
     await this.getProducts({ page: nextPage }, false); // false = 추가 모드
 
     this.setState({ isLoadingMore: false });
@@ -283,22 +293,41 @@ class ProductList extends Component {
     this.observer.observe(target);
   }
 
-  syncToURL() {
+  /**
+   * URL 파라미터 업데이트 (이벤트 핸들러에서 직접 호출)
+   * @param {Object} newParams - 업데이트할 파라미터
+   */
+  updateURL(newParams) {
+    const { filters = {}, pagination = {} } = this.state;
+
+    // 현재 state에서 파라미터 가져오기
     const params = new URLSearchParams();
-    const { filters, pagination } = this.state;
-    if (filters.search) params.set("search", filters.search);
-    if (filters.category1) params.set("category1", filters.category1);
-    if (filters.category2) params.set("category2", filters.category2);
-    if (filters.sort !== "price_asc") params.set("sort", filters.sort);
-    if (pagination.page !== 1) params.set("page", pagination.page.toString());
-    if (pagination.limit !== 20) params.set("limit", pagination.limit.toString());
+    const search = newParams.search !== undefined ? newParams.search : filters.search;
+    const category1 = newParams.category1 !== undefined ? newParams.category1 : filters.category1;
+    const category2 = newParams.category2 !== undefined ? newParams.category2 : filters.category2;
+    const sort = newParams.sort !== undefined ? newParams.sort : filters.sort || "price_asc";
+    const page = newParams.page !== undefined ? newParams.page : pagination.page || 1;
+    const limit = newParams.limit !== undefined ? newParams.limit : pagination.limit || 20;
+
+    // 파라미터 설정
+    if (search) params.set("search", search);
+    if (category1) params.set("category1", category1);
+    if (category2) params.set("category2", category2);
+    if (sort !== "price_asc") params.set("sort", sort);
+    if (page !== 1) params.set("page", page.toString());
+    // limit은 newParams에 명시적으로 전달된 경우 항상 URL에 반영
+    if (newParams.limit !== undefined) {
+      params.set("limit", limit.toString());
+    } else if (limit !== 20) {
+      params.set("limit", limit.toString());
+    }
 
     const newURL = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ""}`;
     window.history.pushState({}, "", newURL);
   }
 
   goProductPage(id) {
-    navigateTo(`/products/${id}`, { productId: id });
+    navigateTo(`/product/${id}`, { productId: id });
   }
 
   unmount() {

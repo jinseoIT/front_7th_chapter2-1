@@ -172,7 +172,7 @@ class ProductPage extends Component {
   }
 
   async fetchData() {
-    const productId = this.$props?.productId || getPickPath("/products/");
+    const productId = this.$props?.productId || getPickPath("/product/");
     const product = await getProduct(productId);
     return product;
   }
@@ -421,7 +421,7 @@ class ProductPage extends Component {
   }
 
   goProductPage(id) {
-    navigateTo(`/products/${id}`, { productId: id });
+    navigateTo(`/product/${id}`, { productId: id });
   }
 }
 
